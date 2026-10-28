@@ -49,6 +49,12 @@ Change the verbose level of the tdlib.
 
 exit the tdlib-json-cli.
 
+On `exit` or EOF on stdin, tdlib-json-cli sends `close` to TDLib and waits up to 30 seconds for `authorizationStateClosed`. Then it writes the `exited` event, which takes 1 second at most, and exits with code 0. If it doesn't recognize the update in time, it prints a message to stderr and exits with code 1: TDLib may still have been closing, or may have sent the update in a format tdlib-json-cli doesn't recognize. The 30 seconds hold even when TDLib or a write to stdout blocks.
+
+While closing, a write to stdout that is not accepted within 100 ms is dropped, together with the rest of the output. The last line may be cut short. On a terminal, a file, a socket, or a pipe on macOS, a write that has started can still block. Then only the 30 seconds apply.
+
+`exit` and EOF are read only after the previous request has been passed to TDLib. TDLib writes its log to stderr from the thread of the call, so make sure stderr is a file or a pipe that is read. Otherwise a full stderr blocks the request and `exit` is never read.
+
 ### Events
 
 We provide serveral events for you to know tdlib-json-cli status.
@@ -61,7 +67,7 @@ This event will be trigged at td client created.
 
 #### exited
 
-This event will be trigged at tdlib-json-cli exited.
+The last line tdlib-json-cli writes before exiting. It is missing when a write to stdout failed or was dropped earlier, or when writing it took more than 1 second, so wait for the process to exit, not for this event.
 
 ## Build
 
